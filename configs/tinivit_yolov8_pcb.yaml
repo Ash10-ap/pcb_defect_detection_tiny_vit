@@ -1,0 +1,266 @@
+# TinyViT-YOLOv8 PCB Defect Detection Configuration
+
+experiment:
+  name: "tinivit_yolov8_pcb_detection"
+  description: "Multi-stage training of TinyViT-YOLOv8 for PCB defect detection"
+  version: "1.0.0"
+  tags: ["pcb", "defect-detection", "tinivit", "yolov8", "attention"]
+
+model:
+  name: "tinivit_yolo_medium"
+  img_size: 640
+  
+  backbone_config:
+    model_name: "tiny_vit_21m_224"
+    pretrained: true
+    img_size: 640
+    drop_rate: 0.0
+    drop_path_rate: 0.1
+  
+  attention_config:
+    attention_type: "cbam"  # Options: cbam, eca, enhanced_cbam, eca_spatial
+    use_cross_scale: true
+    use_residual: true
+  
+  yolo_config:
+    nc: 6  # Number of classes (excluding background)
+    depth_multiple: 0.5
+    width_multiple: 0.5
+
+training:
+  # Multi-stage training configuration
+  stages:
+    foundation:
+      epochs: 80
+      lr: 1.0e-3
+      weight_decay: 1.0e-4
+      optimizer: "adam"
+      scheduler: "cosine"
+      freeze_backbone_stages: 10
+      
+    transfer_early:
+      epochs: 20
+      lr: 5.0e-4
+      weight_decay: 1.0e-4
+      optimizer: "adam"
+      scheduler: "plateau"
+      freeze_backbone_stages: 12
+      
+    transfer_partial:
+      epochs: 20
+      lr: 2.0e-4
+      weight_decay: 1.0e-4
+      optimizer: "adam"
+      scheduler: "plateau"
+      freeze_backbone_stages: 7
+      unfreeze_last_stages: 5
+      
+    transfer_full:
+      epochs: 20
+      lr: 1.0e-4
+      weight_decay: 1.0e-4
+      optimizer: "adam"
+      scheduler: "plateau"
+      freeze_backbone_stages: 2
+      unfreeze_last_stages: 10
+      
+    few_shot:
+      epochs: 30
+      lr: 1.0e-5
+      weight_decay: 1.0e-5
+      optimizer: "adam"
+      scheduler: "plateau"
+      freeze_backbone_stages: 12
+  
+  # General training parameters
+  batch_size: 16
+  accumulate_grad_batches: 1
+  gradient_clip_val: 1.0
+  early_stopping_patience: 10
+  
+  # Loss configuration
+  loss_config:
+    bbox_weight: 7.5
+    cls_weight: 0.5
+    obj_weight: 1.0
+    focal_alpha: 0.25
+    focal_gamma: 1.5
+  
+  # Data augmentation
+  augmentation:
+    preserve_defects: true
+    mosaic_prob: 0.5
+    mixup_prob: 0.1
+    copy_paste_prob: 0.1
+    
+    # Geometric transforms
+    hflip_prob: 0.5
+    vflip_prob: 0.5
+    rotate90_prob: 0.5
+    
+    # Color transforms
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+    hue: 0.05
+    
+    # Noise and blur
+    gaussian_noise_prob: 0.3
+    motion_blur_prob: 0.2
+    
+    # Cutout
+    cutout_prob: 0.3
+    cutout_holes: 3
+
+datasets:
+  foundation:
+    name: "PKU-Market-PCB"
+    root: "data/PKU-Market-PCB"
+    type: "pku"
+    classes:
+      0: "background"
+      1: "missing_hole"
+      2: "mouse_bite"
+      3: "open_circuit"
+      4: "short"
+      5: "spur"
+      6: "spurious_copper"
+  
+  transfer:
+    name: "HRIPCB"
+    root: "data/HRIPCB"
+    type: "hripcb"
+    classes:
+      0: "background"
+      1: "open"
+      2: "short"
+      3: "mousebite"
+      4: "spur"
+      5: "copper"
+      6: "pin-hole"
+  
+  few_shot:
+    name: "HRIPCB-FewShot"
+    root: "data/HRIPCB-FewShot"
+    type: "hripcb"
+    max_samples_per_class: 10
+
+hardware:
+  # Hardware configuration
+  device: "auto"  # auto, cuda, cpu
+  num_workers: 4
+  pin_memory: true
+  
+  # Multi-GPU settings
+  strategy: "ddp"  # ddp, dp
+  devices: "auto"
+  
+  # Memory optimization
+  use_amp: true  # Automatic Mixed Precision
+  gradient_checkpointing: true
+
+logging:
+  # Experiment tracking
+  use_wandb: false
+  wandb_project: "tinivit-yolov8-pcb"
+  
+  # Local logging
+  log_every_n_steps: 50
+  save_top_k: 3
+  monitor: "val_map"
+  mode: "max"
+  
+  # Checkpointing
+  save_dir: "experiments"
+  checkpoint_every_n_epochs: 5
+  save_last: true
+
+evaluation:
+  # Evaluation parameters
+  conf_threshold: 0.25
+  iou_threshold: 0.45
+  max_det: 300
+  
+  # mAP calculation
+  iou_thresholds: [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
+  
+  # Test Time Augmentation
+  use_tta: false
+  tta_scales: [0.9, 1.0, 1.1]
+  tta_flips: [false, true]
+
+export:
+  # Model export configuration
+  formats: ["pytorch", "onnx", "tensorrt", "mobile"]
+  
+  # ONNX settings
+  onnx_opset: 11
+  onnx_simplify: true
+  dynamic_axes:
+    input: {0: "batch_size", 2: "height", 3: "width"}
+    output: {0: "batch_size"}
+  
+  # Quantization
+  quantization:
+    backend: "qnnpack"  # qnnpack, fbgemm
+    dtype: "qint8"
+    calibration_samples: 100
+  
+  # TensorRT
+  tensorrt:
+    precision: "fp16"  # fp32, fp16, int8
+    workspace_size: 1073741824  # 1GB
+  
+  # Optimization
+  optimize_for_mobile: true
+  jit_trace: true
+
+inference:
+  # Inference configuration
+  batch_size: 1
+  device: "cuda"
+  
+  # Post-processing
+  nms_iou_threshold: 0.45
+  confidence_threshold: 0.25
+  max_detections: 100
+  
+  # Visualization
+  class_colors:
+    1: [255, 0, 0]      # missing_hole: Red
+    2: [0, 255, 0]      # mouse_bite: Green  
+    3: [0, 0, 255]      # open_circuit: Blue
+    4: [255, 255, 0]    # short: Yellow
+    5: [255, 0, 255]    # spur: Magenta
+    6: [0, 255, 255]    # spurious_copper: Cyan
+  
+  font_scale: 0.5
+  thickness: 2
+
+# Hyperparameter optimization (optional)
+optimization:
+  method: "optuna"  # optuna, hyperopt, random
+  n_trials: 100
+  
+  search_space:
+    lr: [1e-5, 1e-2]
+    weight_decay: [1e-6, 1e-3] 
+    bbox_weight: [1.0, 10.0]
+    cls_weight: [0.1, 2.0]
+    
+  objective: "val_map"
+  direction: "maximize"
+
+# Resource monitoring
+monitoring:
+  track_carbon: false
+  track_memory: true
+  track_flops: false
+  
+  # Profiling
+  enable_profiler: false
+  profiler_schedule:
+    wait: 1
+    warmup: 1
+    active: 3
+    repeat: 2

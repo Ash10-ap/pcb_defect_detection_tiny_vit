@@ -1,0 +1,3 @@
+[submodule "external/TinyViT"]
+	path = external/TinyViT
+	url = https://github.com/wkcn/TinyViT.git

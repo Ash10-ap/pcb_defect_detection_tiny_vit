@@ -1,1 +1,0 @@
-# TinyViT-YOLOv8 PCB Defect Detection Package

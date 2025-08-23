@@ -122,11 +122,15 @@ def main():
     
     print(f"\nProject structure:")
     print("├── main.py           # Main RT-DETR script")
+    print("├── setup_project.py  # This setup script")
     print("├── data/             # Dataset configs")
     print("├── models/           # Trained models")
     print("├── results/          # Training results")
     print("├── inference/        # Inference outputs")
     print("└── requirements.txt  # Dependencies")
+    
+    print(f"\nDataset will be cached at:")
+    print("~/.cache/kagglehub/datasets/norbertelter/pcb-defect-dataset/")
 
 if __name__ == "__main__":
     main()

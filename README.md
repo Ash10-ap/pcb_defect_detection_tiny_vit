@@ -5,15 +5,15 @@
 ## ⚡ Quick Start (30 seconds)
 
 ```bash
-# 1. Clone and setup
-git clone <your-repo>
-cd new-final-tinivit
+# 1. Clone repository
+git clone https://github.com/Ash10-ap/pcb_defect_detection_tiny_vit.git
+cd pcb_defect_detection_tiny_vit
 
-# 2. Auto-setup everything
+# 2. Auto-setup everything (installs dependencies + downloads dataset)
 python setup_project.py
 
 # 3. Start training (RTX 4060 optimized)
-python main.py train --epochs 100 --batch 20
+python main.py train --epochs 100 --batch 12
 ```
 
 ## 🎯 Features
@@ -43,33 +43,68 @@ RT-DETR-PCB/
 └── docs/              # Documentation
 ```
 
-## 🔧 Dataset with Kagglehub
+## 📦 Dataset Setup After Cloning
 
-**Automatic Download:**
+### Method 1: Auto Setup (Recommended)
+```bash
+git clone https://github.com/Ash10-ap/pcb_defect_detection_tiny_vit.git
+cd pcb_defect_detection_tiny_vit
+
+# This installs everything and downloads dataset
+python setup_project.py
+```
+
+### Method 2: Manual Setup
+```bash
+git clone https://github.com/Ash10-ap/pcb_defect_detection_tiny_vit.git
+cd pcb_defect_detection_tiny_vit
+
+# Install requirements
+pip install -r requirements.txt
+
+# Download dataset
+python -c "import kagglehub; kagglehub.dataset_download('norbertelter/pcb-defect-dataset')"
+```
+
+### Method 3: Auto-download During Training
+```bash
+git clone https://github.com/Ash10-ap/pcb_defect_detection_tiny_vit.git
+cd pcb_defect_detection_tiny_vit
+pip install -r requirements.txt
+
+# Dataset will auto-download when training starts
+python main.py train --epochs 100 --batch 12
+```
+
+## 🔧 Dataset Information
+
+**Automatic Download with Kagglehub:**
 ```python
 import kagglehub
 path = kagglehub.dataset_download("norbertelter/pcb-defect-dataset")
 print("Dataset path:", path)
 ```
 
-**Dataset Info:**
-- **Source**: Kaggle norbertelter/pcb-defect-dataset
+**Dataset Details:**
+- **Source**: Kaggle norbertelter/pcb-defect-dataset  
+- **Size**: ~600MB download
 - **Images**: 10,668 high-resolution PCB images
 - **Classes**: 6 defect types (mouse_bite, spur, missing_hole, short, open_circuit, spurious_copper)
 - **Format**: YOLO annotation format
+- **Cache Location**: `~/.cache/kagglehub/datasets/norbertelter/pcb-defect-dataset/`
 
 ## 🚀 Training Commands
 
 ### Quick Training (RTX 4060)
 ```bash
-# Recommended for RTX 4060 (8GB)
-python main.py train --epochs 100 --batch 20
+# Recommended for RTX 4060 (8GB) 
+python main.py train --epochs 100 --batch 12
 
 # Memory-safe option
-python main.py train --epochs 100 --batch 16
+python main.py train --epochs 100 --batch 8
 
 # Quick test (5 epochs)
-python main.py train --epochs 5 --batch 20
+python main.py train --epochs 5 --batch 12
 ```
 
 ### Advanced Training
@@ -108,10 +143,10 @@ python main.py validate --model results/rtdetr_l_pcb/weights/best.pt
 ### GPU Memory Settings
 ```bash
 # RTX 4060 (8GB) - Recommended
-python main.py train --batch 20 --imgsz 640
+python main.py train --batch 12 --imgsz 640
 
 # RTX 3060 (6GB)
-python main.py train --batch 16 --imgsz 640
+python main.py train --batch 8 --imgsz 640
 
 # RTX 4090 (24GB)
 python main.py train --batch 32 --imgsz 640
@@ -120,9 +155,9 @@ python main.py train --batch 32 --imgsz 640
 ## 📈 Expected Performance
 
 ### Training Speed (RTX 4060)
-- **Batch 20**: ~2 hours for 100 epochs ⚡
-- **Batch 16**: ~2.5 hours for 100 epochs
-- **Batch 24**: ~1.8 hours for 100 epochs (max performance)
+- **Batch 12**: ~2.5 hours for 100 epochs ⚡
+- **Batch 8**: ~3 hours for 100 epochs (safe)
+- **Batch 16**: ~2 hours for 100 epochs (if no memory errors)
 
 ### Accuracy Expectations
 - **mAP@0.5**: 85-92%

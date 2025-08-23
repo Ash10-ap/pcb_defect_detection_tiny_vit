@@ -33,8 +33,9 @@ RT-DETR-PCB/
 ├── requirements.txt     # Dependencies
 ├── README.md           # This file
 │
-├── data/               # Dataset configurations
-│   └── data.yaml       # RT-DETR dataset config
+├── data/                     # Dataset folder
+│   ├── pcb-defect-dataset/   # Local PCB dataset (10,668 images)
+│   └── data.yaml            # RT-DETR dataset config
 │
 ├── models/             # Trained models and checkpoints
 ├── results/            # Training results and logs
@@ -91,7 +92,8 @@ print("Dataset path:", path)
 - **Images**: 10,668 high-resolution PCB images
 - **Classes**: 6 defect types (mouse_bite, spur, missing_hole, short, open_circuit, spurious_copper)
 - **Format**: YOLO annotation format
-- **Cache Location**: `~/.cache/kagglehub/datasets/norbertelter/pcb-defect-dataset/`
+- **Local Location**: `data/pcb-defect-dataset/` (copied from kagglehub cache)
+- **Cache Location**: `~/.cache/kagglehub/datasets/norbertelter/pcb-defect-dataset/` (source)
 
 ## 🚀 Training Commands
 

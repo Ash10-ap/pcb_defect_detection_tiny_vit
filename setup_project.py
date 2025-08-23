@@ -30,8 +30,8 @@ def create_project_structure():
     print("[OK] Project structure created!")
 
 def download_dataset():
-    """Download PCB dataset using kagglehub"""
-    print("\nDownloading PCB defect dataset...")
+    """Download PCB dataset using kagglehub to local data folder"""
+    print("\nDownloading PCB defect dataset to data/ folder...")
     
     try:
         import kagglehub
@@ -42,9 +42,26 @@ def download_dataset():
         import kagglehub
     
     try:
-        # Download latest version
-        dataset_path = kagglehub.dataset_download("norbertelter/pcb-defect-dataset")
-        print(f"[OK] Dataset downloaded to: {dataset_path}")
+        local_data_path = Path('data/pcb-defect-dataset')
+        
+        # Check if already exists locally
+        if local_data_path.exists():
+            print(f"Dataset already exists at: {local_data_path}")
+            create_data_config(str(local_data_path.absolute()))
+            return str(local_data_path.absolute())
+        
+        # Download to cache first
+        print("Downloading dataset...")
+        cache_path = kagglehub.dataset_download("norbertelter/pcb-defect-dataset")
+        print(f"Dataset cached at: {cache_path}")
+        
+        # Copy to local data folder
+        print(f"Copying to local data folder: {local_data_path}")
+        import shutil
+        shutil.copytree(cache_path, local_data_path)
+        
+        dataset_path = str(local_data_path.absolute())
+        print(f"[OK] Dataset set up at: {dataset_path}")
         
         # Create data.yaml
         create_data_config(dataset_path)
@@ -121,16 +138,20 @@ def main():
         print("1. Try training (will auto-download): python main.py train --epochs 100 --batch 20")
     
     print(f"\nProject structure:")
-    print("├── main.py           # Main RT-DETR script")
-    print("├── setup_project.py  # This setup script")
-    print("├── data/             # Dataset configs")
-    print("├── models/           # Trained models")
-    print("├── results/          # Training results")
-    print("├── inference/        # Inference outputs")
-    print("└── requirements.txt  # Dependencies")
+    print("|- main.py           # Main RT-DETR script")
+    print("|- setup_project.py  # This setup script")  
+    print("|- data/             # Dataset folder")
+    print("|  |- pcb-defect-dataset/  # Local PCB dataset")
+    print("|  +- data.yaml      # Dataset config")
+    print("|- models/           # Trained models")
+    print("|- results/          # Training results")
+    print("|- inference/        # Inference outputs")
+    print("+- requirements.txt  # Dependencies")
     
-    print(f"\nDataset will be cached at:")
-    print("~/.cache/kagglehub/datasets/norbertelter/pcb-defect-dataset/")
+    print(f"\nDataset location:")
+    print("[Local]  data/pcb-defect-dataset/ (used by training code)")
+    print("[Cache]  ~/.cache/kagglehub/... (downloaded first, then copied)")
+    print("\n>>> The dataset is now stored locally in your project folder for faster access!")
 
 if __name__ == "__main__":
     main()

@@ -54,7 +54,9 @@ RT-DETR-PCB/
 ├── main.py              # Complete RT-DETR system
 ├── setup_project.py     # Setup script
 ├── requirements.txt     # Dependencies
-├── data/               # Dataset configurations
+├── data/                     # Dataset folder
+│   ├── pcb-defect-dataset/   # Local PCB dataset
+│   └── data.yaml            # Dataset config
 ├── models/             # Trained models
 ├── results/            # Training outputs
 └── inference/          # Inference results
@@ -62,9 +64,11 @@ RT-DETR-PCB/
 
 ## 💾 Dataset Location
 
-The PCB defect dataset will be cached at:
-- **Windows**: `C:\Users\{username}\.cache\kagglehub\datasets\norbertelter\pcb-defect-dataset\`
-- **Linux/Mac**: `~/.cache/kagglehub/datasets/norbertelter/pcb-defect-dataset/`
+The PCB defect dataset is stored locally in your project:
+- **Local folder**: `data/pcb-defect-dataset/` (primary location used by code)
+- **Kagglehub cache**: Downloaded first to cache, then copied to local folder
+  - **Windows**: `C:\Users\{username}\.cache\kagglehub\datasets\norbertelter\pcb-defect-dataset\`
+  - **Linux/Mac**: `~/.cache/kagglehub/datasets/norbertelter/pcb-defect-dataset/`
 
 ## 🎯 Start Training
 

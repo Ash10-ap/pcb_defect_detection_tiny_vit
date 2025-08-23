@@ -37,22 +37,27 @@ class RTDETRDetector:
         print("DATASET SETUP")
         print("="*60)
         
-        # Check if dataset exists locally
+        # Check if dataset exists locally (prioritize local data folder)
         potential_paths = [
+            'data/pcb-defect-dataset',
+            './data/pcb-defect-dataset',
             'pcb-defect-dataset',
             './pcb-defect-dataset',
-            # Kagglehub cache locations
+            # Kagglehub cache locations (fallback)
             os.path.expanduser('~/.cache/kagglehub/datasets/norbertelter/pcb-defect-dataset/versions/2'),
             os.path.expanduser('~/.cache/kagglehub/datasets/norbertelter/pcb-defect-dataset/versions/1'), 
-            # Legacy kaggle API cache
-            os.path.expanduser('~/.cache/kagglehub/datasets/norbertelter/pcb-defect-dataset/versions/2/pcb-defect-dataset'),
         ]
         
         dataset_path = None
         for path in potential_paths:
             if Path(path).exists() and self._check_dataset_structure(path):
-                dataset_path = str(Path(path).absolute())
-                print(f"✓ Found dataset at: {dataset_path}")
+                # Check if we need to use nested path
+                nested_path = Path(path) / 'pcb-defect-dataset'
+                if nested_path.exists() and (nested_path / 'train/images').exists():
+                    dataset_path = str(nested_path.absolute())
+                else:
+                    dataset_path = str(Path(path).absolute())
+                print(f"[OK] Found dataset at: {dataset_path}")
                 break
         
         if not dataset_path:
@@ -60,13 +65,18 @@ class RTDETRDetector:
         
         # Create data.yaml for RT-DETR
         data_yaml = self._create_data_yaml(dataset_path)
-        print(f"✓ Dataset configuration: {data_yaml}")
+        print(f"[OK] Dataset configuration: {data_yaml}")
         return data_yaml
     
     def _check_dataset_structure(self, path: str) -> bool:
         """Check if dataset has correct structure"""
         try:
             path = Path(path)
+            # Check for nested structure first (kagglehub downloads include dataset name folder)
+            nested_path = path / 'pcb-defect-dataset'
+            if nested_path.exists():
+                path = nested_path
+            
             required = ['train/images', 'val/images', 'test/images']
             for req in required:
                 if not (path / req).exists():
@@ -78,38 +88,54 @@ class RTDETRDetector:
             return False
     
     def _download_dataset(self) -> str:
-        """Download dataset using kagglehub"""
-        print("Dataset not found locally. Attempting download...")
+        """Download dataset using kagglehub to local data folder"""
+        print("Dataset not found locally. Attempting download to data/ folder...")
         
         try:
             import kagglehub
             print(f"Downloading {self.dataset_name} using kagglehub...")
             
-            # Download latest version using kagglehub
-            dataset_path = kagglehub.dataset_download(self.dataset_name)
-            print(f"✓ Dataset downloaded to: {dataset_path}")
+            # Download to cache first (kagglehub default behavior)
+            cache_path = kagglehub.dataset_download(self.dataset_name)
+            print(f"Dataset cached at: {cache_path}")
             
-            # Verify the downloaded dataset
-            if self._check_dataset_structure(dataset_path):
-                return dataset_path
+            # Copy to local data folder for better project organization
+            local_data_path = Path('data/pcb-defect-dataset')
+            
+            if local_data_path.exists():
+                print(f"Local data folder already exists: {local_data_path}")
+                if self._check_dataset_structure(str(local_data_path)):
+                    return str(local_data_path.absolute())
+                else:
+                    print("Existing local data is invalid, will re-copy...")
+                    import shutil
+                    shutil.rmtree(local_data_path)
+            
+            # Copy from cache to local data folder
+            print(f"Copying dataset to local data folder: {local_data_path}")
+            import shutil
+            shutil.copytree(cache_path, local_data_path)
+            
+            # Verify the copied dataset
+            if self._check_dataset_structure(str(local_data_path)):
+                print(f"[OK] Dataset successfully set up at: {local_data_path.absolute()}")
+                return str(local_data_path.absolute())
             else:
-                raise FileNotFoundError("Downloaded dataset structure is invalid")
+                raise FileNotFoundError("Copied dataset structure is invalid")
             
         except ImportError:
-            print("❌ kagglehub not available. Installing...")
+            print("[INFO] kagglehub not available. Installing...")
             try:
                 import subprocess
                 subprocess.check_call([sys.executable, "-m", "pip", "install", "kagglehub"])
-                import kagglehub
-                dataset_path = kagglehub.dataset_download(self.dataset_name)
-                print(f"✓ Dataset downloaded to: {dataset_path}")
-                return dataset_path
+                # Retry the download after installation
+                return self._download_dataset()
             except Exception as e:
-                print(f"❌ Failed to install kagglehub: {e}")
+                print(f"[ERROR] Failed to install kagglehub: {e}")
                 self._show_manual_download_instructions()
                 raise
         except Exception as e:
-            print(f"❌ Download failed: {e}")
+            print(f"[ERROR] Download failed: {e}")
             self._show_manual_download_instructions()
             raise
     
@@ -120,12 +146,12 @@ class RTDETRDetector:
         print("="*60)
         print("Option 1 - Use kagglehub (Recommended):")
         print("  pip install kagglehub")
-        print("  python -c \"import kagglehub; print(kagglehub.dataset_download('norbertelter/pcb-defect-dataset'))\"")
+        print("  python -c \"import kagglehub; import shutil; cache=kagglehub.dataset_download('norbertelter/pcb-defect-dataset'); shutil.copytree(cache, 'data/pcb-defect-dataset')\"")
         print("")
         print("Option 2 - Manual download:")
         print("  1. Go to: https://www.kaggle.com/datasets/norbertelter/pcb-defect-dataset")
         print("  2. Download the dataset")
-        print("  3. Extract to current directory as 'pcb-defect-dataset'")
+        print("  3. Extract to data/pcb-defect-dataset folder")
         print("="*60)
     
     def _create_data_yaml(self, dataset_path: str) -> str:
@@ -164,12 +190,12 @@ class RTDETRDetector:
         if torch.cuda.is_available():
             gpu_name = torch.cuda.get_device_name(0)
             gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1e9
-            print(f"✓ GPU: {gpu_name}")
-            print(f"✓ VRAM: {gpu_memory:.1f} GB")
-            print(f"✓ CUDA Version: {torch.version.cuda}")
+            print(f"[OK] GPU: {gpu_name}")
+            print(f"[OK] VRAM: {gpu_memory:.1f} GB")
+            print(f"[OK] CUDA Version: {torch.version.cuda}")
             return True
         else:
-            print("❌ No CUDA GPU detected")
+            print("[WARNING] No CUDA GPU detected")
             print("Training will be very slow on CPU")
             return False
     
@@ -255,19 +281,19 @@ class RTDETRDetector:
                 verbose=True
             )
             
-            print(f"\n✓ Training completed!")
-            print(f"✓ Best model: {results.save_dir}/weights/best.pt")
-            print(f"✓ Results: {results.save_dir}")
+            print(f"\n[OK] Training completed!")
+            print(f"[OK] Best model: {results.save_dir}/weights/best.pt")
+            print(f"[OK] Results: {results.save_dir}")
             
             self.model = model
             return True
             
         except ImportError:
-            print("❌ Error: ultralytics not installed or RT-DETR not available")
+            print("[ERROR] Error: ultralytics not installed or RT-DETR not available")
             print("Install with: pip install ultralytics>=8.0.200")
             return False
         except Exception as e:
-            print(f"❌ Training failed: {e}")
+            print(f"[ERROR] Training failed: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -278,16 +304,16 @@ class RTDETRDetector:
             from ultralytics import RTDETR
             print(f"Loading RT-DETR model from: {model_path}")
             self.model = RTDETR(model_path)
-            print("✓ Model loaded successfully")
+            print("[OK] Model loaded successfully")
             return True
         except Exception as e:
-            print(f"❌ Failed to load model: {e}")
+            print(f"[ERROR] Failed to load model: {e}")
             return False
     
     def run_inference(self, image_path: str, args) -> Optional[object]:
         """Run inference on image"""
         if self.model is None:
-            print("❌ No model loaded")
+            print("[ERROR] No model loaded")
             return None
         
         try:
@@ -305,7 +331,7 @@ class RTDETRDetector:
             return results[0] if results else None
             
         except Exception as e:
-            print(f"❌ Inference failed: {e}")
+            print(f"[ERROR] Inference failed: {e}")
             return None
     
     def save_results(self, result, image_path: str, output_dir: str = 'results'):
@@ -333,12 +359,12 @@ class RTDETRDetector:
             # Save result
             success = cv2.imwrite(str(output_path), annotated)
             if success:
-                print(f"✓ Results saved: {output_path}")
+                print(f"[OK] Results saved: {output_path}")
             
             return output_path
             
         except Exception as e:
-            print(f"❌ Failed to save results: {e}")
+            print(f"[ERROR] Failed to save results: {e}")
             return None
     
     def print_detections(self, result):
@@ -392,14 +418,14 @@ class RTDETRDetector:
                 verbose=True
             )
             
-            print(f"\n✓ Validation Results:")
+            print(f"\n[OK] Validation Results:")
             print(f"mAP@0.5: {results.box.map50:.4f}")
             print(f"mAP@0.5:0.95: {results.box.map:.4f}")
             
             return True
             
         except Exception as e:
-            print(f"❌ Validation failed: {e}")
+            print(f"[ERROR] Validation failed: {e}")
             return False
 
 def create_parser():
@@ -474,12 +500,12 @@ def main():
                 print("1. Validate: python main.py validate --model results/rtdetr_l_pcb/weights/best.pt")
                 print("2. Test: python main.py infer --model results/rtdetr_l_pcb/weights/best.pt --img test.jpg")
             else:
-                print("\n❌ Training failed")
+                print("\n[ERROR] Training failed")
                 sys.exit(1)
         
         elif args.command == 'infer':
             if not args.img and not args.dir:
-                print("❌ Error: Must specify --img or --dir")
+                print("[ERROR] Error: Must specify --img or --dir")
                 sys.exit(1)
             
             if not detector.load_model(args.model):
@@ -494,7 +520,7 @@ def main():
             elif args.dir:
                 image_dir = Path(args.dir)
                 if not image_dir.exists():
-                    print(f"❌ Directory not found: {args.dir}")
+                    print(f"[ERROR] Directory not found: {args.dir}")
                     sys.exit(1)
                 
                 images = list(image_dir.glob('*.jpg')) + list(image_dir.glob('*.jpeg')) + list(image_dir.glob('*.png'))
@@ -510,13 +536,13 @@ def main():
             if not success:
                 sys.exit(1)
         
-        print(f"\n✅ Operation completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"\n[DONE] Operation completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
     except KeyboardInterrupt:
-        print("\n\n⏹️  Training interrupted by user")
+        print("\n\n[STOP] Training interrupted by user")
         sys.exit(0)
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n[ERROR] Error: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
